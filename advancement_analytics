@@ -1,0 +1,669 @@
+import pandas as pd
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+
+donor_master = pd.read_csv("C:\\Program Files\\Projects\\Fundraising Data set\\kaggle_dataset\\donors.csv")
+donor_master.head()
+
+donor_master_subset = donor_master[['ID', 'Full_Name', 'donor_type', 'Rating', 'Prospect_Stage', 'Lifetime_Giving', 'Family_Giving_Potential', 'engagement_score', 'influence_score', 'Will_Give_Again_Probability', 'days_since_last_gift', 'is_loyal_donor', 'Legacy_Intent_Probability', 'network_size']]
+donor_master_subset.head()
+### dataset audit 
+donor_master_subset.info()
+donor_master_subset.describe()
+#Total Donors
+total_donors = donor_master_subset['ID'].nunique()
+print(total_donors)
+#Total Giving
+total_giving = donor_master_subset['Lifetime_Giving'].sum()
+print(total_giving)
+#median giving 
+median_giving = donor_master_subset['Lifetime_Giving'].median()
+print(median_giving)
+#average giving
+average_giving = donor_master_subset['Lifetime_Giving'].mean()
+print(average_giving)
+#donor types 
+donor_master_subset['donor_type'].value_counts()
+#Loyality Analysis 
+donor_master_subset.groupby('is_loyal_donor')['Lifetime_Giving'].agg(['count','sum','mean'])
+donor_master_subset['Lifetime_Giving'].describe()
+A few observations: 
+This is likely typical for fundraising scenarios, the largest gift being 100M dollars skews the data, given the average gift is 62K, it further suggests that the distribution is skewed further by bigger donors, the median gift suggests that less than 50% donors give less than 441 in their lifetime. It would be benificial to look at the distribution of donors
+top_1 = donor_master_subset['Lifetime_Giving'].quantile(0.99)
+top_5 = donor_master_subset['Lifetime_Giving'].quantile(0.95)
+top_10 = donor_master_subset['Lifetime_Giving'].quantile(0.90)
+
+print(f"Top 1% cutoff: ${top_1:,.2f}")
+print(f"Top 5% cutoff: ${top_5:,.2f}")
+print(f"Top 10% cutoff: ${top_10:,.2f}")
+Top 1% donors gave about 100m, top 5% gave about 156k and top 19% donors gave 55k, which means 90% donors gave less than 55k in individual donations
+
+This also means that the donor profile is highly concentrated, top 10% of donors, have contributed more than 55k in their lifetimes. Which means, a small share of donors account for a disproportioanltey large share of total giving. 
+donor_master_subset.groupby(
+    pd.cut(
+        donor_master_subset['Lifetime_Giving'],
+        bins=[-float('inf'), top_10, top_5, top_1, float('inf')],
+        labels=['Bottom 90%', 'Top 10-5%', 'Top 5-1%', 'Top 1%']
+    )
+)['Lifetime_Giving'].sum()
+
+total = 31097998415.8
+
+bottom_90 = 2.108878e9
+top_10_5 = 2.332850e9
+top_5_1 = 7.493272e9
+top_1 = 1.916300e10
+
+print(bottom_90 / total * 100)
+print(top_10_5 / total * 100)
+print(top_5_1 / total * 100)
+print(top_1 / total * 100)
+
+bottom 90% of donors contribute = 6.78%
+Top 10-5% = 7.5% of donations
+top 5-1% = 24% of donations
+top 1% = 61.6 % of donations
+
+[c for c in donor_master.columns if 'day' in c.lower()]
+## DAYS SINCE LAST GIFT
+donor_master_subset['days_since_last_gift'].describe()
+Average time is last gift, 7 days, median is -2 days, which means gift giving is much more frequnet. Where does the 7 days comes from ? 
+donor_master_subset.groupby('is_loyal_donor')['Lifetime_Giving'].agg(['count','sum','mean'])
+Interpretations:  is_loyal_donor : -0.478716  = 406k people, 25.65B in contributions, 81% of constituents, averaeg giving $63,067 in average giving 
+
+Group B: 93221 donors, (19%) of donors, 5.44B in giving, 58k in average giving
+
+The engineered loyalty metric does not appear to strongly differentiate donors by lifetime giving amount.
+
+While the loyalty metric separates constituents into distinct groups, average lifetime giving remains relatively similar across both segments, suggesting that the feature may capture consistency of giving behavior rather than donor value
+donor_master_subset.groupby('donor_type')['Lifetime_Giving'].agg(['count','sum','mean'])
+In terms of sheer count, most donors are alumns, with corporations and friends and parents making the next biggest group. However, the means are pretty standard against all groups. This suggests that donor type might not be a strong predictor of philantrohipc value 
+## RATING VS GIVING
+donor_master_subset.groupby('Rating')['Lifetime_Giving'].agg(['count','sum','mean'])
+### engagement vs giving
+donor_master_subset[['engagement_score','Lifetime_Giving']].corr()
+There is a weak negetive correlation between engagement score and lifetime giving. Which means, there is eseentially no linear relationship between engagement score and lifetime giving. Which constitues to engagement scores are not necessarily indicative of giving. 
+import statsmodels.api as sm
+
+X = donor_master_subset[['engagement_score']]
+X = sm.add_constant(X)
+
+y = donor_master_subset['Lifetime_Giving']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+the coeff of the engagement score is -2109.2039, and the p value is 0.060, which means it's not statistically signifiacant. tHE R2 is 000, which means that 0% variation in lifetime giving. 
+
+INTERESTINGLY ENOUGH, I expected engagement scroes to have an affect on lifetime giving. That raised the question as to how engagemetn is measured and wheter all engagement activiteis are equally preditctive of philantrophy. 
+### correlation between will_give_again _probabiltiy and life_time_giving
+donor_master_subset[['Will_Give_Again_Probability', 'Lifetime_Giving']].corr()
+With a correlation of 0.043 this indicates a weak positive correlation between giving probabilty and lifetime giving
+donor_master_subset.groupby('donor_type')['Lifetime_Giving'].agg(['count','sum','mean'])
+import statsmodels.api as sm
+
+X = donor_master[
+    [
+        'Lifetime_Giving',
+        'gift_count',
+        'gifts_last_12mo'
+    ]
+]
+
+X = sm.add_constant(X)
+
+y = donor_master['Will_Give_Again_Probability']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+Neither giving history nor gift frequnecy appears to meaningfully predict future giving probabilty in the dataset 
+
+donor_master.corr(numeric_only=True)['Will_Give_Again_Probability']\
+    .sort_values(ascending=False)
+import statsmodels.api as sm
+
+X = donor_master[
+    [
+        'Total_Yr_Giving_Count',
+        'Consecutive_Yr_Giving_Count',
+        'Gave_Again_In_2024',
+        'Gave_Again_In_2025'
+    ]
+]
+
+X = sm.add_constant(X)
+
+y = donor_master['Will_Give_Again_Probability']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())b
+import statsmodels.api as sm
+
+X = donor_master[
+    [
+        'Gave_Again_In_2024',
+        'Gave_Again_In_2025'
+    ]
+]
+
+X = sm.add_constant(X)
+
+y = donor_master['Will_Give_Again_Probability']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+Donor retention is the strongest predictor of future giving propensity. Constituents who have demonstrated repeat giving behavior in prior years are significantly more likely to give again.
+
+contacts = pd.read_csv("C:\\Program Files\\Projects\\Fundraising Data set\\kaggle_dataset\\contacts.csv")
+contacts.head()
+contacts.describe()
+events = pd.read_csv("C:\\Program Files\\Projects\\Fundraising Data set\\kaggle_dataset\\events.csv")
+events.head()
+giving = pd.read_csv("C:\\Program Files\\Projects\\Fundraising Data set\\kaggle_dataset\\giving.csv")
+giving.head()
+relationships = pd.read_csv("C:\\Program Files\\Projects\\Fundraising Data set\\kaggle_dataset\\relationships.csv")
+relationships.head()
+relationships.info()
+giving.info()
+contacts.info()
+events.info()
+### Relationships
+
+relationship_features = relationships.groupby('Donor_ID_1').agg(
+    relationship_count=('Donor_ID_2', 'count'),
+    avg_relationship_strength=('Relationship_Strength', 'mean'),
+    max_relationship_strength=('Relationship_Strength', 'max'),
+    relationship_type_count=('Relationship_Type', 'nunique')
+).reset_index()
+#GIVING
+giving_features = giving.groupby('Donor_ID').agg(
+    total_gifts=('Gift_ID', 'count'),
+    avg_gift=('Gift_Amount', 'mean'),
+    max_gift=('Gift_Amount', 'max'),
+    total_given=('Gift_Amount', 'sum')
+).reset_index()## Giving 
+
+#CONTACTS
+contact_features = contacts.groupby('Donor_ID').agg(
+    contact_count=('Contact_Report_ID', 'count'),
+    contact_type_count=('Contact_Type', 'nunique')
+).reset_index()
+#EVENTS
+event_features = events.groupby('Donor_ID').agg(
+    events_attended=('Event_Name', 'count'),
+    unique_events=('Event_Name', 'nunique')
+).reset_index()
+feature_cols = [
+    'total_gifts_y',
+    'avg_gift',
+    'max_gift',
+    'contact_count',
+    'contact_type_count',
+    'events_attended',
+    'unique_events',
+    'relationship_count',
+    'avg_relationship_strength_y',
+    'max_relationship_strength_y',
+    'relationship_type_count'
+]
+
+model_df[feature_cols] = model_df[feature_cols].fillna(0)
+model_df = model_df.rename(columns={
+    'total_gifts_y': 'giving_total_gifts',
+    'avg_relationship_strength_y': 'rel_avg_strength',
+    'max_relationship_strength_y': 'rel_max_strength'
+})
+feature_cols = [
+    'giving_total_gifts',
+    'avg_gift',
+    'max_gift',
+    'contact_count',
+    'contact_type_count',
+    'events_attended',
+    'unique_events',
+    'relationship_count',
+    'rel_avg_strength',
+    'rel_max_strength',
+    'relationship_type_count'
+]
+import statsmodels.api as sm
+
+regression_cols = [
+    'Lifetime_Giving',
+    'giving_total_gifts',
+    'avg_gift',
+    'max_gift',
+    'contact_count',
+    'events_attended',
+    'relationship_count',
+    'rel_avg_strength'
+]
+
+df_reg = model_df[regression_cols + ['Will_Give_Again_Probability']].dropna()
+
+X = df_reg[regression_cols]
+X = sm.add_constant(X)
+
+y = df_reg['Will_Give_Again_Probability']
+
+model = sm.OLS(y, X).fit()
+
+print(model.summary())
+### Key Findings
+
+#### 1. Fundraising is highly concentrated
+
+* Median lifetime giving = **$441**
+* Mean lifetime giving = **$62,196**
+* Largest donor = **$100M**
+
+**Interpretation:**
+A small number of major donors account for a disproportionate share of philanthropic revenue, which is typical in university fundraising.
+
+---
+
+#### 2. Donor type is not a strong predictor of giving
+
+Although Alumni represent the largest constituent group (~55% of donors), average lifetime giving is fairly similar across Alumni, Parents, Friends, Corporations, Foundations, Trustees, and Regents.
+
+**Interpretation:**
+Constituent type alone does not appear to differentiate donor value.
+
+---
+
+#### 3. Engagement score does not predict giving
+
+Correlation:
+
+```text
+Engagement Score ↔ Lifetime Giving = -0.003
+```
+
+Regression:
+
+```text
+R² ≈ 0.000
+```
+
+**Interpretation:**
+The synthetic engagement score has virtually no relationship with donor value in this dataset.
+
+---
+
+#### 4. Prior giving behavior is the strongest predictor of future giving probability
+
+Model using:
+
+* Total_Yr_Giving_Count
+* Consecutive_Yr_Giving_Count
+* Gave_Again_In_2024
+* Gave_Again_In_2025
+
+produced:
+
+```text
+R² = 0.51 - 0.69
+```
+
+depending on specification.
+
+**Interpretation:**
+Donors who have demonstrated consistent giving behavior are substantially more likely to give again.
+
+---
+
+#### 5. Contact activity is one of the strongest engagement predictors
+
+In the integrated model:
+
+```text
+contact_count coef = 0.068
+p < .001
+```
+
+**Interpretation:**
+Each additional contact report is associated with a meaningful increase in future giving propensity.
+
+This suggests stewardship activity may be strongly associated with donor retention.
+
+---
+
+#### 6. Event attendance has a positive effect
+
+```text
+events_attended coef = 0.0022
+p < .001
+```
+
+**Interpretation:**
+Event participation is positively associated with future giving, although the effect is much smaller than prior giving history or contact activity.
+
+---
+
+#### 7. Relationship quantity does not appear to matter
+
+```text
+relationship_count p = 0.523
+```
+
+**Interpretation:**
+Having more relationships in the network does not significantly increase giving probability.
+
+---
+
+### Executive Summary
+
+> The strongest predictors of future giving are prior giving behavior and contact activity. While event attendance contributes positively, donor type, relationship volume, and the synthetic engagement score provide little additional explanatory power. These findings suggest that consistent stewardship and prior philanthropic behavior are more important indicators of future giving than constituent category or network size.
+
+## Decision tree
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.model_selection import train_test_split
+
+X = model_df[predictors].fillna(0)
+y = model_df['Will_Give_Again_Probability']
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42
+)
+
+tree = DecisionTreeRegressor(
+    max_depth=4,
+    random_state=42
+)
+
+tree.fit(X_train, y_train)
+
+print("Train R²:", tree.score(X_train, y_train))
+print("Test R²:", tree.score(X_test, y_test))
+
+## HIGH TRAIN R AND HIGH TEST R^2 WHICH MEANS THE TREE IS OPTIMAL 
+import pandas as pd
+
+pd.DataFrame({
+    'Feature': predictors,
+    'Importance': tree.feature_importances_
+}).sort_values(
+    'Importance',
+    ascending=False
+)
+
+We have a test and training r2 and test r2 value which means the model generalises donor data well and explains all the variation in the unseen data.
+
+The feature importance suggests:
+| Variable           | Importance |
+| ------------------ | ---------: |
+| giving_total_gifts |      99.0% |
+| Lifetime_Giving    |      0.97% |
+| events_attended    |      0.02% |
+| relationship_count |    ~0.005% |
+| contact_count      |        ~0% |
+
+Historical giving behavior overwhelmingly dominates predictive performance. Additional engagement variables provide comparatively little incremental explanatory power in the presence of giving-history variables
+#k means cluster
+cluster_cols = [
+    'Lifetime_Giving',
+    'giving_total_gifts',
+    'contact_count',
+    'events_attended',
+    'Will_Give_Again_Probability'
+]
+
+from sklearn.preprocessing import StandardScaler
+
+X = model_df[cluster_cols].fillna(0)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+from sklearn.cluster import KMeans
+import matplotlib.pyplot as plt
+
+inertia = []
+
+for k in range(2, 11):
+    kmeans = KMeans(
+        n_clusters=k,
+        random_state=42,
+        n_init=10
+    )
+    kmeans.fit(X_scaled)
+    inertia.append(kmeans.inertia_)
+
+plt.plot(range(2,11), inertia, marker='o')
+plt.xlabel('K')
+plt.ylabel('Inertia')
+plt.title('Elbow Method')
+plt.show()
+
+kmeans = KMeans(
+    n_clusters=5,
+    random_state=42,
+    n_init=10
+)
+
+model_df['cluster'] = kmeans.fit_predict(X_scaled)
+
+cluster_profile = model_df.groupby('cluster')[cluster_cols].mean().round(2)
+
+print(cluster_profile)
+
+print(model_df['cluster'].value_counts())
+Cluster 0 — Low Engagement / Low Propensity
+
+128,242 donors (25.6%)
+
+Metric	Value
+Lifetime Giving	$7.3k
+Gifts	0.92
+Contacts	0
+Events	0.20
+Give Again Prob	10%
+
+Persona:
+
+Low-Engagement Constituents
+
+These are barely engaged and have the lowest future giving probability.
+
+Cluster 1 — Loyal Annual Donors ⭐
+
+134,487 donors (26.9%)
+
+Metric	Value
+Lifetime Giving	$92k
+Gifts	23.2
+Contacts	0.79
+Events	0.10
+Give Again Prob	83%
+
+Persona:
+
+Loyal Annual Donors
+
+This is your best segment.
+
+High giving.
+High frequency.
+Highest future giving probability.
+
+Cluster 2 — Contacted but Unconverted
+
+181,861 donors (36.4%)
+
+Metric	Value
+Lifetime Giving	$44k
+Gifts	1.04
+Contacts	1.00
+Events	0.20
+Give Again Prob	14%
+
+Persona:
+
+Contacted but Unconverted
+
+Largest segment.
+
+Interesting because they have contact activity but very low giving frequency and low future probability.
+
+This is probably your most actionable segment.
+
+Cluster 3 — Mega Donors 👑
+
+124 donors
+
+Metric	Value
+Lifetime Giving	$38.3M
+Gifts	12.5
+Contacts	0.94
+Events	0.33
+Give Again Prob	55%
+
+Persona:
+
+Transformational Donors
+
+This is the principal gifts population.
+
+Tiny segment.
+Massive giving.
+
+Cluster 4 — Engaged Mid-Major Donors
+
+55,286 donors (11.1%)
+
+Metric	Value
+Lifetime Giving	$89k
+Gifts	7.4
+Contacts	0.76
+Events	1.45
+Give Again Prob	54%
+
+Persona:
+
+Event-Engaged Mid-Major Donors
+
+Most event-active segment.
+
+Strong giving.
+Strong future probability.
+import pandas as pd
+
+donor_master = pd.read_csv(r"C:\Program Files\Projects\Fundraising Data set\kaggle_dataset\donors.csv")
+contacts = pd.read_csv(r"C:\Program Files\Projects\Fundraising Data set\kaggle_dataset\contacts.csv")
+events = pd.read_csv(r"C:\Program Files\Projects\Fundraising Data set\kaggle_dataset\events.csv")
+giving = pd.read_csv(r"C:\Program Files\Projects\Fundraising Data set\kaggle_dataset\giving.csv")
+relationships = pd.read_csv(r"C:\Program Files\Projects\Fundraising Data set\kaggle_dataset\relationships.csv")b
+# Relationships
+
+relationship_features = relationships.groupby('Donor_ID_1').agg(
+    relationship_count=('Donor_ID_2', 'count'),
+    avg_relationship_strength=('Relationship_Strength', 'mean'),
+    max_relationship_strength=('Relationship_Strength', 'max'),
+    relationship_type_count=('Relationship_Type', 'nunique')
+).reset_index()
+# Giving
+
+giving_features = giving.groupby('Donor_ID').agg(
+    total_gifts=('Gift_ID', 'count'),
+    avg_gift=('Gift_Amount', 'mean'),
+    max_gift=('Gift_Amount', 'max'),
+    total_given=('Gift_Amount', 'sum')
+).reset_index()
+# Contacts
+
+contact_features = contacts.groupby('Donor_ID').agg(
+    contact_count=('Contact_Report_ID', 'count'),
+    contact_type_count=('Contact_Type', 'nunique')
+).reset_index()
+# Events
+
+event_features = events.groupby('Donor_ID').agg(
+    events_attended=('Event_Name', 'count'),
+    unique_events=('Event_Name', 'nunique')
+).reset_index()
+print(giving_features.shape)
+print(contact_features.shape)
+print(event_features.shape)
+print(relationship_features.shape)
+model_df = donor_master.copy()
+
+model_df = model_df.merge(giving_features, left_on='ID', right_on='Donor_ID', how='left')
+model_df = model_df.drop(columns=['Donor_ID'])
+
+model_df = model_df.merge(contact_features, left_on='ID', right_on='Donor_ID', how='left')
+model_df = model_df.drop(columns=['Donor_ID'])
+
+model_df = model_df.merge(event_features, left_on='ID', right_on='Donor_ID', how='left')
+model_df = model_df.drop(columns=['Donor_ID'])
+
+model_df = model_df.merge(relationship_features, left_on='ID', right_on='Donor_ID_1', how='left')
+model_df = model_df.drop(columns=['Donor_ID_1'])
+
+model_df = model_df.rename(columns={
+    'total_gifts_y': 'giving_total_gifts',
+    'avg_relationship_strength_y': 'rel_avg_strength',
+    'max_relationship_strength_y': 'rel_max_strength'
+})
+
+feature_cols = [
+    'giving_total_gifts',
+    'avg_gift',
+    'max_gift',
+    'total_given',
+    'contact_count',
+    'contact_type_count',
+    'events_attended',
+    'unique_events',
+    'relationship_count',
+    'rel_avg_strength',
+    'rel_max_strength',
+    'relationship_type_count'
+]
+
+model_df[feature_cols] = model_df[feature_cols].fillna(0)
+
+print(model_df.shape)
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
+cluster_cols = [
+    'Lifetime_Giving',
+    'giving_total_gifts',
+    'contact_count',
+    'events_attended',
+    'Will_Give_Again_Probability'
+]
+
+X = model_df[cluster_cols].fillna(0)
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
+
+model_df['cluster'] = kmeans.fit_predict(X_scaled)
+persona_map = {
+    0: 'Low Engagement / Low Propensity',
+    1: 'Loyal Annual Donors',
+    2: 'Contacted but Unconverted',
+    3: 'Transformational Donors',
+    4: 'Event-Engaged Mid-Major Donors'
+}
+
+model_df['persona'] = model_df['cluster'].map(persona_map)
+import os
+
+os.makedirs(
+    r"C:\Users\jyoti\Documents\Fundraising Analytics",
+    exist_ok=True
+)
+
+model_df.to_csv(
+    r"C:\Users\jyoti\Documents\Fundraising Analytics\advancement_dashboard.csv",
+    index=False
+)
