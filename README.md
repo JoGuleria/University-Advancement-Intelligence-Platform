@@ -104,3 +104,10 @@ Provide personalized stewardship for Transformational Donors
 - XGBoost
 - Prospect Scoring
 - Major Gift Identification
+
+## Citation 
+```
+Danielle Brown, Loyola Marymount University, M.S. in Computer Science Senior Capstone Project, 2025
+Synthetic Donor Dataset with Multimodal Fusion Predictions
+```
+
