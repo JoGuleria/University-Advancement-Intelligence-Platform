@@ -1,0 +1,41 @@
+## Data
+
+This project uses a synthetic university advancement dataset containing 500,000 constituent records and over $31 billion in lifetime philanthropic giving.
+
+### Tables
+
+| Table | Description |
+|---------|------------|
+| Donors | Constituent demographics, ratings, giving history, engagement metrics, and giving propensity scores |
+| Giving | Individual gift transactions including gift amount, date, and designation |
+| Contacts | Stewardship and fundraising contact reports |
+| Events | Event attendance records |
+| Relationships | Relationship network between constituents |
+
+### Key Variables
+
+#### Giving Metrics
+- Lifetime_Giving
+- gift_count
+- Total_Yr_Giving_Count
+- Consecutive_Yr_Giving_Count
+- gifts_last_12mo
+
+#### Engagement Metrics
+- engagement_score
+- contact_count
+- events_attended
+
+#### Relationship Metrics
+- relationship_count
+- relationship_strength
+- network_size
+
+#### Target Variable
+- Will_Give_Again_Probability
+
+### Limitations
+
+- Dataset is synthetic and generated for educational purposes.
+- Several variables (e.g., engagement_score, influence_score, is_loyal_donor, Will_Give_Again_Probability) are engineered features with undocumented calculation methodologies.
+- Findings should be interpreted as analytical demonstrations rather than real donor behavior.
