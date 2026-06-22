@@ -1,3 +1,14 @@
+### CODE FOR STREAMLIT WEB APP
+### that allows users to search advancement contact reports using natural language.
+
+Example queries:
+- "prospects interested in scholarships"
+- "donors who want to be removed from outreach"
+- "positive meeting with major gift potential"
+
+The app uses TF-IDF retrieval over contact report text and returns relevant donor IDs, contact dates, outcomes, relevance scores, and report excerpts.
+
+
 import pandas as pd
 import streamlit as st
 from sklearn.feature_extraction.text import TfidfVectorizer
