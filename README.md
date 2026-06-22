@@ -105,6 +105,22 @@ Provide personalized stewardship for Transformational Donors
 - Prospect Scoring
 - Major Gift Identification
 
+  ## Streamlit Prospect Search App
+
+I also built a local Streamlit prototype that allows users to search advancement contact reports using natural language.
+
+Example queries:
+- "prospects interested in scholarships"
+- "donors who want to be removed from outreach"
+- "positive meeting with major gift potential"
+
+The app uses TF-IDF retrieval over contact report text and returns relevant donor IDs, contact dates, outcomes, relevance scores, and report excerpts.
+<img width="956" height="497" alt="image" src="https://github.com/user-attachments/assets/bb601b63-0d39-4072-af04-824c820839c0" />
+
+<img width="956" height="499" alt="image" src="https://github.com/user-attachments/assets/2ec6c3ae-2efa-4fa4-a09f-360951bdcf27" />
+
+
+
 ## Citation 
 ```
 Danielle Brown, Loyola Marymount University, M.S. in Computer Science Senior Capstone Project, 2025
